@@ -35,28 +35,81 @@ app.post("/people", (req, res) => {
   res.json(req.body); // Le respondemos al cliente el objeto añadido
 });
 
-app.put("/people/:index", (req, res) => {
-  let index = people[req.params.index];
+const bodyParser = require('body-parser');
 
-  fs.readFile("./json/people.json", "utf-8", (err, data) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send("Error al leer el archivo");
+app.use(bodyParser.json());
+
+app.put("/people/:index", (req, res) => {
+  const path = "./json/people.json"; //dirección del archivo
+  let index = req.params.index; //almacenar index de la url
+  let newData = req.body; //almacenar los datos que vienen en el body de la request
+
+  fs.readFile(path, 'utf-8', function(errorRead, data) { //leer un archivo con fs (file system module de node) => (dirección, modo de decodificación, función)
+    if (errorRead){
+      console.error(errorRead);
+      console.log('Algo salió mal');
+      res.status(500).send('Error en la lectura del archivo'); //error 500 => Internal server error
+      return;
     }
 
-    let peopleData = JSON.parse(data);
+    const people = JSON.parse(data); //La data que nos devuelve readFile está en formato json - necesario parsear
 
-    res.json(peopleData);
-  });
-});
+    if (index >= 0 && index < people.length){ //verificar la existencia del index
+      people[index] = newData; //actualización de datos
+
+      fs.writeFile(path, JSON.stringify(people), function(errorWrite) { //sobreescribir un archivo con fs => (dirección, contenido, función)
+        if(errorWrite) {
+          console.error(errorWrite);
+          console.log('Error al escribir el archivo');
+          res.status(500).send('Error al escribir en el archivo')
+        } else {
+          console.log('¡Reemplazado!');
+          res.json(newData);
+        }
+      })
+    } else {
+      console.log('Índice fuera de rango');
+      res.status(400).send('Índice fuera de rango'); //error 400 => bad request
+    }
+  })
+})
+
 
 app.delete("/people/:index", (req, res) => {
-  /* COMPLETA EL CÓDIGO NECESARIO:
-     Para que se pueda eliminar el objeto asociado al índice indicado en la URL 
-   */
+  const path = "./json/people.json"; //dirección del archivo
+  let index = req.params.index; //almacenar index de la url
+
+  fs.readFile(path, 'utf-8', function(errorRead, data){
+    if (errorRead) {
+      console.error(errorRead);
+      console.log('Algo salió mal');
+      res.status(500).send('Error en la lectura del archivo');
+      return;
+    }
+
+    const people = JSON.parse(data);
+    if(index >= 0 && index < people.length){
+      people.splice(index, 1);
+
+      fs.writeFile(path, JSON.stringify(people), function(errorWrite) {
+        if(errorWrite){
+          console.error(errorWrite);
+          console.log('Error al escribir en el archivo');
+          res.status(500).send('Error al escribir en el archivo');
+        } else{
+          console.log('Eliminado con éxito');
+          res.json(people)
+        }
+      })
+    } else {
+      console.log('Índice fuera de rango');
+      res.status(400).send('Índice fuera de rango');
+    }
+  })
 });
 
 // Esta línea inicia el servidor para que escuche peticiones en el puerto indicado
 app.listen(port, () => {
   console.log(`Servidor corriendo en http://localhost:${port}`);
 });
+
